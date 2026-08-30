@@ -45,4 +45,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('/admin/packages', App\Http\Controllers\Admin\PackageController::class);
     Route::apiResource('/admin/licenses', App\Http\Controllers\Admin\LicenseKeyController::class);
     Route::apiResource('/admin/orders', App\Http\Controllers\Admin\OrderController::class)->only(['index', 'show']);
+    Route::apiResource('/admin/customers', App\Http\Controllers\Admin\CustomerController::class)->only(['index']);
 });
