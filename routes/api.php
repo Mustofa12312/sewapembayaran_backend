@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // For customers
     Route::post('/customer/logout', [CustomerAuthController::class, 'logout']);
     Route::get('/customer/orders', [CustomerOrderController::class, 'index']);
+    Route::get('/customer/affiliate', [\App\Http\Controllers\AffiliateController::class, 'dashboard']);
     
     // Subscriptions & Renewals
     Route::post('/orders/{token}/renew', [\App\Http\Controllers\SubscriptionController::class, 'renew']);
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/user', function (Request $request) {
         return $request->user();
     });
+    
+    Route::get('/admin/analytics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index']);
 
     Route::apiResource('/admin/staff', App\Http\Controllers\Admin\AdminManagementController::class)->only(['index', 'store']);
     Route::apiResource('/admin/products', App\Http\Controllers\Admin\ProductController::class);
