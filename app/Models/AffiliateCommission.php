@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class AffiliateCommission extends Model
 {
-    //
+    protected $guarded = [];
 }

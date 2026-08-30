@@ -12,14 +12,25 @@ class CustomerAuthController extends Controller
             'name' => 'required|string',
             'email' => 'required|email|unique:customers',
             'password' => 'required|min:6',
-            'phone' => 'nullable|string'
+            'phone' => 'nullable|string',
+            'referrer_code' => 'nullable|string'
         ]);
+
+        $referrerId = null;
+        if (!empty($validated['referrer_code'])) {
+            $referrer = Customer::where('referral_code', $validated['referrer_code'])->first();
+            if ($referrer) {
+                $referrerId = $referrer->id;
+            }
+        }
 
         $customer = Customer::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null
+            'phone' => $validated['phone'] ?? null,
+            'referral_code' => strtoupper(\Illuminate\Support\Str::random(6)),
+            'referrer_id' => $referrerId
         ]);
 
         $token = $customer->createToken('customer-token')->plainTextToken;

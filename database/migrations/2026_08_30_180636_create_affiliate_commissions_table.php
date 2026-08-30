@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('affiliate_commissions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->decimal('amount', 15, 2);
+            $table->string('status')->default('PENDING'); // PENDING, PAID
             $table->timestamps();
         });
     }

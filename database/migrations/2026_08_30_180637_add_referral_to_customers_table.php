@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table) {
-            //
+            $table->string('referral_code')->nullable()->unique();
+            $table->unsignedBigInteger('referrer_id')->nullable();
+            $table->foreign('referrer_id')->references('id')->on('customers')->nullOnDelete();
         });
     }
 
@@ -22,7 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('customers', function (Blueprint $table) {
-            //
+            $table->dropForeign(['referrer_id']);
+            $table->dropColumn(['referral_code', 'referrer_id']);
         });
     }
 };

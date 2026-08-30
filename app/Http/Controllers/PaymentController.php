@@ -74,10 +74,25 @@ class PaymentController extends Controller
                         'license_key_id' => $license->id
                     ]);
 
-                    // Mock Email & WhatsApp Notifications
-                    \Illuminate\Support\Facades\Log::info("MOCK EMAIL: Sent license key {$license->license_key} to {$order->customer_email}");
-                    if ($order->customer_phone) {
-                        \Illuminate\Support\Facades\Log::info("MOCK WHATSAPP: Sent license key {$license->license_key} to {$order->customer_phone}");
+                    // Phase 2: Send Mock Notifications
+                    $licenseKeyStr = $license->license_key;
+                    \Illuminate\Support\Facades\Log::info("MOCK NOTIFICATION: Email Receipt sent to {$order->customer_email}");
+                    \Illuminate\Support\Facades\Log::info("MOCK NOTIFICATION: WhatsApp License Key [{$licenseKeyStr}] sent to {$order->customer_phone}");
+                    
+                    // Phase 5: Handle Affiliate Commission
+                    if ($order->customer_id) {
+                        $customer = \App\Models\Customer::find($order->customer_id);
+                        if ($customer && $customer->referrer_id) {
+                            // Grant 10% commission
+                            $commissionAmount = $order->snapshot_price * 0.10;
+                            \App\Models\AffiliateCommission::create([
+                                'customer_id' => $customer->referrer_id,
+                                'order_id' => $order->id,
+                                'amount' => $commissionAmount,
+                                'status' => 'PENDING'
+                            ]);
+                            \Illuminate\Support\Facades\Log::info("AFFILIATE: Granted Rp{$commissionAmount} commission to Customer ID {$customer->referrer_id}");
+                        }
                     }
                 }
             });
