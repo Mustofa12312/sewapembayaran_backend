@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('license_keys', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('package_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('license_key')->unique();
+            $table->string('status')->default('AVAILABLE'); // AVAILABLE, ASSIGNED, ACTIVE, EXPIRED, DISABLED
+            $table->foreignId('assigned_order_id')->nullable();
+            $table->timestamp('assigned_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
             $table->timestamps();
         });
     }

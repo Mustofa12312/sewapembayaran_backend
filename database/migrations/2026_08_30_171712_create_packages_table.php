@@ -13,6 +13,14 @@ return new class extends Migration
     {
         Schema::create('packages', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->decimal('price', 15, 2);
+            $table->integer('duration_value')->nullable();
+            $table->string('duration_unit')->nullable(); // MONTH, YEAR
+            $table->boolean('is_unlimited')->default(false);
+            $table->string('status')->default('ACTIVE'); // ACTIVE, INACTIVE, ARCHIVED
             $table->timestamps();
         });
     }

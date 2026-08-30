@@ -6,5 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class PackageFeature extends Model
 {
+    protected $guarded = [];
     //
 }

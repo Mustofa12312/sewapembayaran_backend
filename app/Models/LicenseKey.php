@@ -6,5 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class LicenseKey extends Model
 {
+    protected $guarded = [];
     //
 }

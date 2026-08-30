@@ -6,5 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderLicenseKey extends Model
 {
+    protected $guarded = [];
     //
 }

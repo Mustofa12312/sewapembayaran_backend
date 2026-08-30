@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('order_license_keys', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('license_key_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }

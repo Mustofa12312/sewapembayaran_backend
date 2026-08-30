@@ -13,6 +13,14 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->string('midtrans_transaction_id')->nullable()->unique();
+            $table->string('gateway')->default('midtrans');
+            $table->decimal('amount', 15, 2);
+            $table->string('status')->default('PENDING'); // PENDING, PAID, FAILED, EXPIRED
+            $table->string('payment_method')->nullable();
+            $table->timestamp('paid_at')->nullable();
+            $table->json('raw_response')->nullable();
             $table->timestamps();
         });
     }
