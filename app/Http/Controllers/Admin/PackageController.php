@@ -22,6 +22,15 @@ class PackageController extends Controller
                 $package->features()->create(['feature_name' => $f]);
             }
         }
+        \App\Models\AuditLog::create([
+            'action' => 'CREATE_PACKAGE',
+            'entity' => 'PACKAGE',
+            'entity_id' => $package->id,
+            'before' => null,
+            'after' => $package->name,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
         return response()->json($package->load('features'), 201);
     }
     public function show($id) { return Package::with('features')->findOrFail($id); }

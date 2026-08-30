@@ -26,7 +26,18 @@ class ProductController extends Controller
             'status' => 'required|in:ACTIVE,INACTIVE,ARCHIVED'
         ]);
 
-        $product = App\Models\Product::create($validated);
+        $product = \App\Models\Product::create($validated);
+        
+        \App\Models\AuditLog::create([
+            'action' => 'CREATE_PRODUCT',
+            'entity' => 'PRODUCT',
+            'entity_id' => $product->id,
+            'before' => null,
+            'after' => $product->name,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         return response()->json($product, 201);
     }
 
