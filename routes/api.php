@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
+    Route::apiResource('/admin/staff', App\Http\Controllers\Admin\AdminManagementController::class)->only(['index', 'store']);
     Route::apiResource('/admin/products', App\Http\Controllers\Admin\ProductController::class);
     Route::apiResource('/admin/packages', App\Http\Controllers\Admin\PackageController::class);
     Route::apiResource('/admin/licenses', App\Http\Controllers\Admin\LicenseKeyController::class);

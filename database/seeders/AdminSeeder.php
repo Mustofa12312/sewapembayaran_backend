@@ -15,7 +15,8 @@ class AdminSeeder extends Seeder
         \App\Models\Admin::create([
             'name' => 'Super Admin',
             'email' => 'admin@example.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'password' => Hash::make('password'),
+            'role' => 'super_admin'
         ]);
     }
 }
