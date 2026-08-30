@@ -26,8 +26,8 @@ class PackageController extends Controller
             'action' => 'CREATE_PACKAGE',
             'entity' => 'PACKAGE',
             'entity_id' => $package->id,
-            'before' => null,
-            'after' => $package->name,
+            'before_data' => null,
+            'after_data' => json_encode($package),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);

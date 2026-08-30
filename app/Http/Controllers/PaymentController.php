@@ -102,4 +102,21 @@ class PaymentController extends Controller
 
         return response()->json(['message' => 'OK']);
     }
+
+    public function simulate(Request $request, $token) {
+        $order = Order::where('secure_token', $token)->firstOrFail();
+        
+        // Construct mock payload
+        $payload = [
+            'order_id' => $order->order_number,
+            'status_code' => '200',
+            'transaction_status' => 'settlement',
+            'transaction_id' => 'mock_transaction_' . \Illuminate\Support\Str::random(10),
+            'payment_type' => 'mock_qris'
+        ];
+        
+        // Just call webhook method internally
+        $mockRequest = Request::create('/api/webhook/midtrans', 'POST', $payload);
+        return $this->webhook($mockRequest);
+    }
 }

@@ -14,4 +14,7 @@ class ProductController extends Controller
             $q->where('status', 'ACTIVE')->with('features');
         }])->firstOrFail();
     }
+    public function getPackage($id) {
+        return \App\Models\Package::with('product')->where('status', 'ACTIVE')->findOrFail($id);
+    }
 }

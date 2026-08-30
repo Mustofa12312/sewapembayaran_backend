@@ -27,9 +27,9 @@ class LicenseKeyController extends Controller
         \App\Models\AuditLog::create([
             'action' => 'IMPORT_LICENSES',
             'entity' => 'LICENSE',
-            'entity_id' => "Batch #{$count}",
-            'before' => null,
-            'after' => "Imported {$count} keys",
+            'entity_id' => $count > 0 ? $inserted[0]->id : 0, // Using first ID as reference
+            'before_data' => null,
+            'after_data' => json_encode(['count' => $count]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);

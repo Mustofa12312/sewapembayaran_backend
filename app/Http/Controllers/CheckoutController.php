@@ -93,6 +93,7 @@ class CheckoutController extends Controller
         try {
             $snapToken = env('MIDTRANS_SERVER_KEY') === 'dummy' ? 'mock_snap_token_' . Str::random(10) : \Midtrans\Snap::getSnapToken($params);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Midtrans Snap Error: ' . $e->getMessage());
             $snapToken = 'mock_snap_token_' . Str::random(10);
         }
         
