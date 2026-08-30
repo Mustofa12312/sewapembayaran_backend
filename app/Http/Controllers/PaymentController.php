@@ -73,6 +73,12 @@ class PaymentController extends Controller
                         'order_id' => $order->id,
                         'license_key_id' => $license->id
                     ]);
+
+                    // Mock Email & WhatsApp Notifications
+                    \Illuminate\Support\Facades\Log::info("MOCK EMAIL: Sent license key {$license->license_key} to {$order->customer_email}");
+                    if ($order->customer_phone) {
+                        \Illuminate\Support\Facades\Log::info("MOCK WHATSAPP: Sent license key {$license->license_key} to {$order->customer_phone}");
+                    }
                 }
             });
         } else if ($transactionStatus == 'cancel' || $transactionStatus == 'deny' || $transactionStatus == 'expire') {
