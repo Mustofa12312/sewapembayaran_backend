@@ -34,7 +34,9 @@ Route::post('/payments/midtrans/webhook', [PaymentController::class, 'webhook'])
 
 Route::post('/customer/register', [CustomerAuthController::class, 'register']);
 Route::post('/customer/login', [CustomerAuthController::class, 'login']);
-Route::post('/orders/{token}/simulate', [PaymentController::class, 'simulate']);
+if (!app()->isProduction()) {
+    Route::post('/orders/{token}/simulate', [PaymentController::class, 'simulate']);
+}
 
 Route::middleware('auth:sanctum')->group(function () {
     // For customers
@@ -47,19 +49,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/subscriptions/cron', [SubscriptionController::class, 'cron']);
     
     // For admins
-    Route::post('/admin/logout', [AuthController::class, 'logout']);
-    Route::get('/admin/user', function (Request $request) {
-        return $request->user();
-    });
-    
-    Route::get('/admin/analytics', [AnalyticsController::class, 'index']);
+    Route::middleware('admin')->group(function () {
+        Route::post('/admin/logout', [AuthController::class, 'logout']);
+        Route::get('/admin/user', function (Request $request) {
+            return $request->user();
+        });
+        
+        Route::get('/admin/analytics', [AnalyticsController::class, 'index']);
 
-    Route::apiResource('/admin/staff', AdminManagementController::class)->only(['index', 'store']);
-    Route::apiResource('/admin/products', AdminProductController::class);
-    Route::apiResource('/admin/packages', AdminPackageController::class);
-    Route::apiResource('/admin/licenses', AdminLicenseKeyController::class);
-    Route::post('/admin/licenses/import', [AdminLicenseKeyController::class, 'import']);
-    Route::apiResource('/admin/orders', AdminOrderController::class)->only(['index', 'show']);
-    Route::apiResource('/admin/customers', AdminCustomerController::class)->only(['index']);
-    Route::get('/admin/audit-logs', [AuditLogController::class, 'index']);
+        Route::apiResource('/admin/staff', AdminManagementController::class)->only(['index', 'store']);
+        Route::apiResource('/admin/products', AdminProductController::class);
+        Route::apiResource('/admin/packages', AdminPackageController::class);
+        Route::apiResource('/admin/licenses', AdminLicenseKeyController::class);
+        Route::post('/admin/licenses/import', [AdminLicenseKeyController::class, 'import']);
+        Route::apiResource('/admin/orders', AdminOrderController::class)->only(['index', 'show']);
+        Route::apiResource('/admin/customers', AdminCustomerController::class)->only(['index']);
+        Route::get('/admin/audit-logs', [AuditLogController::class, 'index']);
+    });
 });

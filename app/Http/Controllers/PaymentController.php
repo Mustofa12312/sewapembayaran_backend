@@ -12,23 +12,39 @@ class PaymentController extends Controller
         $orderId = $payload['order_id'] ?? null;
         $statusCode = $payload['status_code'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? null;
-        
-        if (!$orderId) return response()->json(['message' => 'Invalid payload'], 400);
+        $grossAmount = $payload['gross_amount'] ?? null;
+        $signatureKey = $payload['signature_key'] ?? null;
 
-        // For MVP, simulating midtrans signature validation bypass if dummy
+        if (!$orderId || !$statusCode || !$grossAmount || !$signatureKey) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        // Verify Midtrans Signature
+        $serverKey = env('MIDTRANS_SERVER_KEY', 'dummy');
+        $calculatedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+        
+        if ($calculatedSignature !== $signatureKey && $serverKey !== 'dummy') {
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
         
         $order = Order::where('order_number', $orderId)->first();
         if (!$order) return response()->json(['message' => 'Order not found'], 404);
         
-        $payment = Payment::where('order_id', $order->id)->first();
-        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
-
-        if ($payment->status === 'PAID') {
-            return response()->json(['message' => 'Already processed']);
-        }
-
         if ($transactionStatus == 'capture' || $transactionStatus == 'settlement') {
-            DB::transaction(function () use ($order, $payment, $payload) {
+            DB::transaction(function () use ($order, $payload, $grossAmount) {
+                // Lock payment row to prevent race conditions (idempotency)
+                $payment = Payment::where('order_id', $order->id)->lockForUpdate()->first();
+                if (!$payment) throw new \Exception('Payment not found');
+
+                if ($payment->status === 'PAID') {
+                    return; // Already processed
+                }
+
+                // Verify gross amount matches the payment amount exactly
+                if (floatval($grossAmount) != floatval($payment->amount)) {
+                    throw new \Exception('Gross amount mismatch');
+                }
+
                 $payment->update([
                     'status' => 'PAID',
                     'paid_at' => now(),
@@ -54,6 +70,16 @@ class PaymentController extends Controller
                     'start_date' => $startDate,
                     'end_date' => $endDate
                 ]);
+
+                // Create Subscription if it's recurring and customer exists
+                if ($package->is_recurring && $order->customer_id) {
+                    \App\Models\Subscription::create([
+                        'customer_id' => $order->customer_id,
+                        'package_id' => $package->id,
+                        'status' => 'ACTIVE',
+                        'next_billing_date' => $endDate ?? now()->addMonth(),
+                    ]);
+                }
 
                 // Assign License
                 $license = LicenseKey::where('product_id', $order->product_id)
@@ -97,7 +123,12 @@ class PaymentController extends Controller
                 }
             });
         } else if ($transactionStatus == 'cancel' || $transactionStatus == 'deny' || $transactionStatus == 'expire') {
-            $payment->update(['status' => 'FAILED']);
+            DB::transaction(function () use ($order) {
+                $payment = Payment::where('order_id', $order->id)->lockForUpdate()->first();
+                if ($payment && $payment->status !== 'PAID') {
+                    $payment->update(['status' => 'FAILED']);
+                }
+            });
         }
 
         return response()->json(['message' => 'OK']);

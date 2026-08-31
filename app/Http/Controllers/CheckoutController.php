@@ -69,14 +69,7 @@ class CheckoutController extends Controller
             'status' => 'PENDING_PAYMENT'
         ]);
         
-        if ($package->is_recurring && $order->customer_id) {
-            \App\Models\Subscription::create([
-                'customer_id' => $order->customer_id,
-                'package_id' => $package->id,
-                'status' => 'ACTIVE',
-                'next_billing_date' => now()->addMonth(),
-            ]);
-        }
+        // Note: Subscription will be created upon successful payment settlement in Webhook
         
         $params = [
             'transaction_details' => [
