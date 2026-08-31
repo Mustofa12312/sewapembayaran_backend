@@ -30,14 +30,34 @@ class ProcessSubscriptions extends Command
 
         $renewed = 0;
         foreach ($dueSubscriptions as $sub) {
+            // Put subscription in grace period
             $sub->update([
-                'next_billing_date' => now()->addMonth()
+                'status' => 'GRACE_PERIOD'
             ]);
             
-            Log::info("MOCK RECURRING: Auto-charged Subscription {$sub->id} for Package {$sub->package_id}. Next billing: {$sub->next_billing_date}");
+            // Create Renewal Order
+            $orderService = new \App\Services\OrderService();
+            // Need a way to fetch the customer data. Subscription belongs to Customer.
+            $customer = \App\Models\Customer::find($sub->customer_id);
+            if (!$customer) {
+                Log::error("Customer not found for Subscription {$sub->id}");
+                continue;
+            }
+
+            $order = $orderService->createOrder([
+                'package_id' => $sub->package_id,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->phone,
+            ], null);
+
+            // Record the subscription ID in the order metadata to link them (using a new column or just matching later).
+            // Actually, we don't have subscription_id in Order table. We can rely on customer_id + package_id in PaymentService.
+            
+            Log::info("Generated renewal Order {$order->id} for Subscription {$sub->id}. Status set to GRACE_PERIOD.");
             $renewed++;
         }
 
-        $this->info("Successfully processed {$renewed} subscriptions.");
+        $this->info("Successfully processed {$renewed} subscriptions into Grace Period.");
     }
 }

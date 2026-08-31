@@ -65,6 +65,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/licenses/import', [AdminLicenseKeyController::class, 'import']);
         Route::apiResource('/admin/orders', AdminOrderController::class)->only(['index', 'show']);
         Route::post('/admin/orders/{id}/refund', [AdminOrderController::class, 'refund']);
+        Route::post('/admin/orders/{id}/mark-paid', [AdminOrderController::class, 'markAsPaid']);
+        
         Route::apiResource('/admin/customers', AdminCustomerController::class)->only(['index']);
         Route::get('/admin/audit-logs', [AuditLogController::class, 'index']);
     });

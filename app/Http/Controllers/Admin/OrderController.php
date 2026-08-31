@@ -44,4 +44,55 @@ class OrderController extends Controller
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
+
+    public function markAsPaid(Request $request, $id) {
+        $order = Order::with('payments')->findOrFail($id);
+        
+        if ($order->status !== 'PENDING_PAYMENT') {
+            return response()->json(['message' => 'Order is not in pending status.'], 400);
+        }
+
+        $payment = $order->payments()->where('status', 'PENDING')->first();
+        if (!$payment) {
+            return response()->json(['message' => 'No pending payment found.'], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($order, $payment) {
+                // Update statuses
+                $payment->update(['status' => 'PAID']);
+                $order->update(['status' => 'ACTIVE']);
+                
+                // Assign license
+                $licenseService = new \App\Services\LicenseService();
+                $licenseService->assignLicense($order);
+
+                // Reactivate Grace Period subscription if any
+                $customer = \App\Models\Customer::where('email', $order->customer_email)->first();
+                if ($customer) {
+                    $sub = \App\Models\Subscription::where('customer_id', $customer->id)
+                        ->where('package_id', $order->package_id)
+                        ->where('status', 'GRACE_PERIOD')
+                        ->first();
+                        
+                    if ($sub) {
+                        $sub->update([
+                            'status' => 'ACTIVE',
+                            'next_billing_date' => now()->addMonth()
+                        ]);
+                    }
+                }
+
+                // Log manual event
+                $paymentService = new \App\Services\PaymentService();
+                $paymentService->logEvent($payment, 'manual_fulfillment', ['source' => 'admin_dashboard']);
+                
+                // Send Paid Email
+                \Illuminate\Support\Facades\Mail::to($order->customer_email)->send(new \App\Mail\OrderPaidMail($order));
+            });
+            return response()->json(['message' => 'Order manually fulfilled successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
 }
