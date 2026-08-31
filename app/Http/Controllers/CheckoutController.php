@@ -47,7 +47,7 @@ class CheckoutController extends Controller
         $finalPrice = $price - $discountAmount;
 
         \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY', 'dummy');
-        \Midtrans\Config::$isProduction = false;
+        \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false);
         \Midtrans\Config::$isSanitized = true;
         \Midtrans\Config::$is3ds = true;
 
