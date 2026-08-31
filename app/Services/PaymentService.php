@@ -62,10 +62,7 @@ class PaymentService
         $serverKey = env('MIDTRANS_SERVER_KEY', 'dummy');
         $calculatedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
         
-        if ($calculatedSignature !== $signatureKey && $serverKey !== 'dummy') {
-            return false;
-        }
-        return true;
+        return $calculatedSignature === $signatureKey;
     }
 
     public function logEvent(Payment $payment, string $status, array $payload): void
