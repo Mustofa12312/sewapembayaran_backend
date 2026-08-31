@@ -32,21 +32,4 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function cron(Request $request)
-    {
-        $dueSubscriptions = Subscription::where('status', 'ACTIVE')
-            ->whereDate('next_billing_date', '<=', now())
-            ->get();
-
-        $renewed = 0;
-        foreach ($dueSubscriptions as $sub) {
-            $sub->next_billing_date = now()->addMonth();
-            $sub->save();
-            
-            \Illuminate\Support\Facades\Log::info("MOCK RECURRING: Auto-charged Subscription {$sub->id} for Package {$sub->package_id}. Next billing: {$sub->next_billing_date}");
-            $renewed++;
-        }
-
-        return response()->json(['message' => 'Cron executed', 'renewed_count' => $renewed]);
-    }
 }

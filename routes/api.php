@@ -29,6 +29,8 @@ Route::get('/packages/{id}', [PublicProductController::class, 'getPackage']);
 
 Route::post('/orders', [CheckoutController::class, 'store']);
 Route::get('/orders/{token}', [CheckoutController::class, 'show']);
+Route::post('/orders/{token}/pay', [CheckoutController::class, 'pay']);
+Route::get('/orders/{token}/invoice', [\App\Http\Controllers\InvoiceController::class, 'download']);
 
 Route::post('/payments/midtrans/webhook', [PaymentController::class, 'webhook']);
 
@@ -46,7 +48,6 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Subscriptions & Renewals
     Route::post('/orders/{token}/renew', [SubscriptionController::class, 'renew']);
-    Route::post('/subscriptions/cron', [SubscriptionController::class, 'cron']);
     
     // For admins
     Route::middleware('admin')->group(function () {
@@ -63,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/admin/licenses', AdminLicenseKeyController::class);
         Route::post('/admin/licenses/import', [AdminLicenseKeyController::class, 'import']);
         Route::apiResource('/admin/orders', AdminOrderController::class)->only(['index', 'show']);
+        Route::post('/admin/orders/{id}/refund', [AdminOrderController::class, 'refund']);
         Route::apiResource('/admin/customers', AdminCustomerController::class)->only(['index']);
         Route::get('/admin/audit-logs', [AuditLogController::class, 'index']);
     });

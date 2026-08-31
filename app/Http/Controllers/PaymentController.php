@@ -1,132 +1,99 @@
 <?php
 namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
-use App\Models\{Order, Payment, LicenseKey, OrderLicenseKey};
+use App\Models\Order;
+use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use App\Services\{PaymentService, LicenseService, SubscriptionService, AffiliateService, NotificationService};
+use Exception;
+
 class PaymentController extends Controller
 {
     public function webhook(Request $request) {
-        // Idempotent webhook handler
         $payload = $request->all();
-        $orderId = $payload['order_id'] ?? null;
+        $midtransOrderId = $payload['order_id'] ?? null;
         $statusCode = $payload['status_code'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? null;
         $grossAmount = $payload['gross_amount'] ?? null;
         $signatureKey = $payload['signature_key'] ?? null;
 
-        if (!$orderId || !$statusCode || !$grossAmount || !$signatureKey) {
+        if (!$midtransOrderId || !$statusCode || !$grossAmount || !$signatureKey) {
             return response()->json(['message' => 'Invalid payload'], 400);
         }
 
-        // Verify Midtrans Signature
-        $serverKey = env('MIDTRANS_SERVER_KEY', 'dummy');
-        $calculatedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
-        
-        if ($calculatedSignature !== $signatureKey && $serverKey !== 'dummy') {
+        $paymentService = new PaymentService();
+        if (!$paymentService->verifySignature($midtransOrderId, $statusCode, $grossAmount, $signatureKey)) {
             return response()->json(['message' => 'Invalid signature'], 403);
         }
+
+        // Extact actual order_number and payment_id
+        $parts = explode('-', $midtransOrderId);
+        $paymentId = array_pop($parts);
+        $orderNumber = implode('-', $parts);
         
-        $order = Order::where('order_number', $orderId)->first();
+        $order = Order::where('order_number', $orderNumber)->first();
         if (!$order) return response()->json(['message' => 'Order not found'], 404);
         
         if ($transactionStatus == 'capture' || $transactionStatus == 'settlement') {
-            DB::transaction(function () use ($order, $payload, $grossAmount) {
-                // Lock payment row to prevent race conditions (idempotency)
-                $payment = Payment::where('order_id', $order->id)->lockForUpdate()->first();
-                if (!$payment) throw new \Exception('Payment not found');
+            try {
+                DB::transaction(function () use ($order, $paymentId, $payload, $grossAmount, $transactionStatus, $paymentService) {
+                    $payment = Payment::where('id', $paymentId)->lockForUpdate()->first();
+                    if (!$payment) throw new Exception('Payment not found');
 
-                if ($payment->status === 'PAID') {
-                    return; // Already processed
-                }
+                    $paymentService->logEvent($payment, $transactionStatus, $payload);
 
-                // Verify gross amount matches the payment amount exactly
-                if (floatval($grossAmount) != floatval($payment->amount)) {
-                    throw new \Exception('Gross amount mismatch');
-                }
+                    if ($payment->status === 'PAID') return;
 
-                $payment->update([
-                    'status' => 'PAID',
-                    'paid_at' => now(),
-                    'midtrans_transaction_id' => $payload['transaction_id'] ?? null,
-                    'payment_method' => $payload['payment_type'] ?? null,
-                    'raw_response' => json_encode($payload)
-                ]);
-
-                // Calculate dates
-                $package = $order->package;
-                $startDate = now();
-                $endDate = null;
-                if (!$package->is_unlimited) {
-                    if ($package->duration_unit === 'MONTH') {
-                        $endDate = now()->addMonths($package->duration_value);
-                    } else if ($package->duration_unit === 'YEAR') {
-                        $endDate = now()->addYears($package->duration_value);
+                    if (floatval($grossAmount) != floatval($payment->amount)) {
+                        throw new Exception('Gross amount mismatch');
                     }
-                }
 
-                $order->update([
-                    'status' => 'ACTIVE',
-                    'start_date' => $startDate,
-                    'end_date' => $endDate
-                ]);
-
-                // Create Subscription if it's recurring and customer exists
-                if ($package->is_recurring && $order->customer_id) {
-                    \App\Models\Subscription::create([
-                        'customer_id' => $order->customer_id,
-                        'package_id' => $package->id,
-                        'status' => 'ACTIVE',
-                        'next_billing_date' => $endDate ?? now()->addMonth(),
-                    ]);
-                }
-
-                // Assign License
-                $license = LicenseKey::where('product_id', $order->product_id)
-                    ->where('status', 'AVAILABLE')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($license) {
-                    $license->update([
-                        'status' => 'ACTIVE',
-                        'assigned_order_id' => $order->id,
-                        'assigned_at' => now(),
-                        'expires_at' => $endDate
-                    ]);
-                    
-                    OrderLicenseKey::create([
-                        'order_id' => $order->id,
-                        'license_key_id' => $license->id
+                    $payment->update([
+                        'status' => 'PAID',
+                        'paid_at' => now(),
+                        'midtrans_transaction_id' => $payload['transaction_id'] ?? null,
+                        'payment_method' => $payload['payment_type'] ?? null,
+                        'raw_response' => json_encode($payload)
                     ]);
 
-                    // Phase 2: Send Mock Notifications
-                    $licenseKeyStr = $license->license_key;
-                    \Illuminate\Support\Facades\Log::info("MOCK NOTIFICATION: Email Receipt sent to {$order->customer_email}");
-                    \Illuminate\Support\Facades\Log::info("MOCK NOTIFICATION: WhatsApp License Key [{$licenseKeyStr}] sent to {$order->customer_phone}");
-                    
-                    // Phase 5: Handle Affiliate Commission
-                    if ($order->customer_id) {
-                        $customer = \App\Models\Customer::find($order->customer_id);
-                        if ($customer && $customer->referrer_id) {
-                            // Grant 10% commission
-                            $commissionAmount = $order->snapshot_price * 0.10;
-                            \App\Models\AffiliateCommission::create([
-                                'customer_id' => $customer->referrer_id,
-                                'order_id' => $order->id,
-                                'amount' => $commissionAmount,
-                                'status' => 'PENDING'
-                            ]);
-                            \Illuminate\Support\Facades\Log::info("AFFILIATE: Granted Rp{$commissionAmount} commission to Customer ID {$customer->referrer_id}");
-                        }
+                    $package = $order->package;
+                    $startDate = now();
+                    $endDate = null;
+                    if (!$package->is_unlimited) {
+                        $endDate = $package->duration_unit === 'MONTH' 
+                            ? now()->addMonths($package->duration_value) 
+                            : now()->addYears($package->duration_value);
                     }
-                }
-            });
-        } else if ($transactionStatus == 'cancel' || $transactionStatus == 'deny' || $transactionStatus == 'expire') {
-            DB::transaction(function () use ($order) {
-                $payment = Payment::where('order_id', $order->id)->lockForUpdate()->first();
-                if ($payment && $payment->status !== 'PAID') {
-                    $payment->update(['status' => 'FAILED']);
+
+                    $order->update([
+                        'status' => 'ACTIVE',
+                        'start_date' => $startDate,
+                        'end_date' => $endDate
+                    ]);
+
+                    (new SubscriptionService())->createSubscriptionForOrder($order);
+                    $license = (new LicenseService())->assignLicenseToOrder($order);
+
+                    if ($license) {
+                        $notificationService = new NotificationService();
+                        $notificationService->sendOrderReceipt($order);
+                        $notificationService->sendLicenseKey($order, $license->license_key);
+                        
+                        (new AffiliateService())->processCommission($order);
+                    }
+                });
+            } catch (Exception $e) {
+                return response()->json(['message' => $e->getMessage()], 400);
+            }
+        } else if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+            DB::transaction(function () use ($paymentId, $transactionStatus, $payload, $paymentService) {
+                $payment = Payment::where('id', $paymentId)->lockForUpdate()->first();
+                if ($payment) {
+                    $paymentService->logEvent($payment, $transactionStatus, $payload);
+                    if ($payment->status !== 'PAID') {
+                        $payment->update(['status' => 'FAILED']);
+                    }
                 }
             });
         }
@@ -137,16 +104,22 @@ class PaymentController extends Controller
     public function simulate(Request $request, $token) {
         $order = Order::where('secure_token', $token)->firstOrFail();
         
-        // Construct mock payload
         $payload = [
             'order_id' => $order->order_number,
             'status_code' => '200',
             'transaction_status' => 'settlement',
+            'gross_amount' => $order->snapshot_price - $order->discount_amount,
             'transaction_id' => 'mock_transaction_' . \Illuminate\Support\Str::random(10),
             'payment_type' => 'mock_qris'
         ];
         
-        // Just call webhook method internally
+        $payload['signature_key'] = hash('sha512', 
+            $payload['order_id'] . 
+            $payload['status_code'] . 
+            $payload['gross_amount'] . 
+            env('MIDTRANS_SERVER_KEY', 'dummy')
+        );
+
         $mockRequest = Request::create('/api/webhook/midtrans', 'POST', $payload);
         return $this->webhook($mockRequest);
     }

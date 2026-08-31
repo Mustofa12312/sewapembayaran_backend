@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['order_number', 'secure_token', 'package_id', 'product_id', 'customer_name', 'customer_email', 'customer_phone', 'snapshot_price', 'start_date', 'end_date', 'status', 'customer_id', 'coupon_id', 'discount_amount'];
 
     public function product() {
         return $this->belongsTo(Product::class);
@@ -24,7 +24,7 @@ class Order extends Model
         return $this->belongsTo(Coupon::class);
     }
     
-    public function payment() {
-        return $this->hasOne(Payment::class);
+    public function payments() {
+        return $this->hasMany(Payment::class);
     }
 }

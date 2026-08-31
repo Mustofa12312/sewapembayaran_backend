@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['name', 'slug', 'description', 'thumbnail', 'category', 'status'];
 
     public function packages() {
         return $this->hasMany(Package::class);

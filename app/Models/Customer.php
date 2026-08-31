@@ -9,7 +9,7 @@ class Customer extends Authenticatable
 {
     use HasApiTokens;
 
-    protected $guarded = [];
+    protected $fillable = ['name', 'email', 'password', 'phone', 'remember_token', 'referral_code', 'referrer_id'];
 
     public function orders() {
         return $this->hasMany(Order::class);

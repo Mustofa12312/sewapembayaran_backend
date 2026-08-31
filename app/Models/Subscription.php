@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Subscription extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['customer_id', 'package_id', 'status', 'next_billing_date', 'midtrans_token'];
 
     public function customer() {
         return $this->belongsTo(Customer::class);

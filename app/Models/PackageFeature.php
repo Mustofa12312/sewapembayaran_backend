@@ -6,6 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class PackageFeature extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['package_id', 'feature_name'];
     //
 }

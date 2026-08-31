@@ -6,6 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderLicenseKey extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['order_id', 'license_key_id'];
     //
 }

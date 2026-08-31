@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Package extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['product_id', 'name', 'description', 'price', 'duration_value', 'duration_unit', 'is_unlimited', 'status', 'is_recurring'];
 
     public function product() {
         return $this->belongsTo(Product::class);
